@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Test / tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local run artifacts
+runs/
+results/
+*.log
+
+# Challenge binaries are never committed
+challenges/**/bin/
+challenges/**/*.elf
+challenges/**/*.out
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

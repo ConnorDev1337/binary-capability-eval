@@ -1,0 +1,23 @@
+# Metadata-only example challenge. No binary is shipped: you build your own toy binary
+# locally (see docs/DESIGN.md) and point your runner at it. This file only records what
+# the task is and how to recognise a correct answer.
+#
+# The expected answer is stored as a SHA-256 digest so a challenge file never has to
+# contain the plaintext answer. For this public example the answer is "popcount"
+# (generate digests with `bineval hash --case-insensitive popcount`).
+
+id: asm-reading-001
+level: ASM_READING
+title: Name the function
+description: |
+  The agent is given the disassembly of a single leaf function that takes one unsigned
+  integer and returns an unsigned integer. It must name what the function computes,
+  as a single lower-case word.
+difficulty: 1
+source: own
+tags: [x86-64, leaf-function, naming]
+points: 1
+grader:
+  kind: sha256
+  value: 10280ea85cb40a190a48af2e3b133077bcbf72f24f1ff4a9fcaa11c522b102f4
+  case_sensitive: false
