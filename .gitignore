@@ -19,10 +19,17 @@ runs/
 results/
 *.log
 
-# Challenge binaries are never committed
-challenges/**/bin/
-challenges/**/*.elf
-challenges/**/*.out
+# Challenges are private: only the README in challenges/ is ever committed. Keep your
+# set backed up somewhere private (see challenges/README.md).
+challenges/*
+!challenges/README.md
+
+# Binaries are never committed, wherever they end up
+*.elf
+*.out
+*.exe
+*.so
+*.o
 
 # OS / editor
 .DS_Store

@@ -13,6 +13,7 @@ from bineval.challenge import (
     Challenge,
     GraderSpec,
     Level,
+    challenge_set_hash,
     load_challenge,
     load_challenges,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "RubricStep",
     "RunOutput",
     "aggregate",
+    "challenge_set_hash",
     "evaluate",
     "grade",
     "load_challenge",

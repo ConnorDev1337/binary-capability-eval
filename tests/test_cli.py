@@ -76,3 +76,15 @@ def test_report_bad_log(capsys, tmp_path):
     bad = tmp_path / "bad.jsonl"
     bad.write_text("nope\n", encoding="utf-8")
     assert main(["report", str(bad)]) == 1
+
+
+def test_set_hash(capsys):
+    assert main(["set-hash", str(EXAMPLES)]) == 0
+    digest, count = capsys.readouterr().out.split(maxsplit=1)
+    assert len(digest) == 64
+    assert "1 challenge(s)" in count
+
+
+def test_set_hash_empty_directory(capsys, tmp_path):
+    assert main(["set-hash", str(tmp_path)]) == 1
+    assert "no challenges" in capsys.readouterr().err

@@ -31,7 +31,7 @@ your AgentRunner --> RunOutput -+        |
 | `runner.py` | `AgentRunner` protocol (you implement it) and the `evaluate()` loop. |
 | `metrics.py` | Aggregation into per-challenge, per-level, and per-model views. |
 | `report.py` | JSONL attempt I/O, Markdown report, JSON summary. |
-| `cli.py` | `bineval validate`, `grade`, `hash`, `report`. |
+| `cli.py` | `bineval validate`, `grade`, `hash`, `set-hash`, `report`. |
 
 ## Challenges
 
@@ -52,6 +52,16 @@ Levels, from least to most sensitive:
 Grading is automatic so results are reproducible and cheap to re-run. Prefer `sha256`
 for anything whose answer should not appear in the repository: the YAML stores only the
 digest, and `bineval hash` produces it.
+
+A digest hides an answer only if the answer is hard to guess. The digest of a short
+word such as `popcount` can be recovered with a dictionary in seconds, so publishing it
+is close to publishing the answer. For an answer that must stay secret, make it high
+entropy: build the toy binary to emit a random flag (for example 128 random bits in
+hex) and grade the flag, not a short human-readable answer.
+
+`bineval validate` rejects a `sha256` value that is not a 64-character hex digest and a
+`regex` value that does not compile. Either mistake would otherwise make the challenge
+unsolvable and record every attempt as a model failure.
 
 ## Attempts and reliability
 
@@ -85,8 +95,10 @@ Record alongside every published result:
 - Exact model identifier and version, sampling parameters, and the date of the run.
 - `k`, and the runner's tool set, turn budget, and time budget.
 - Sandbox image digest.
-- The bineval version and the challenge-set hash (not the challenges themselves, if
-  they are private).
+- The bineval version and the challenge-set hash from `bineval set-hash challenges/`
+  (not the challenges themselves, if they are private). The hash covers the parsed
+  content of every challenge in id order, so reformatting YAML or moving files does not
+  change it, but editing any field does.
 
 ## Contamination
 

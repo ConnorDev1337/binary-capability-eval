@@ -65,6 +65,7 @@ python -m venv .venv
 bineval validate examples/                              # check challenge files
 bineval grade examples/asm-reading-001.yaml popcount    # exit 0 if correct, 1 if not
 bineval hash --case-insensitive popcount                # digest for a sha256 grader
+bineval set-hash examples/                              # challenge-set hash to publish with results
 bineval report examples/attempts.synthetic.jsonl        # Markdown report
 bineval report examples/attempts.synthetic.jsonl --format json --out summary.json
 ```

@@ -1,4 +1,4 @@
-"""Command-line interface: ``bineval validate``, ``grade``, ``hash``, ``report``."""
+"""Command-line interface: ``bineval validate``, ``grade``, ``hash``, ``set-hash``, ``report``."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from bineval import __version__
-from bineval.challenge import load_challenge, load_challenges
+from bineval.challenge import challenge_set_hash, load_challenge, load_challenges
 from bineval.grader import grade
 from bineval.metrics import aggregate
 from bineval.report import json_summary, load_attempts, markdown_report
@@ -45,6 +45,19 @@ def cmd_hash(args) -> int:
     if args.case_insensitive:
         text = text.lower()
     print(hashlib.sha256(text.encode("utf-8")).hexdigest())
+    return 0
+
+
+def cmd_set_hash(args) -> int:
+    try:
+        challenges = load_challenges(args.path)
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not challenges:
+        print(f"error: no challenges found under {args.path}", file=sys.stderr)
+        return 1
+    print(f"{challenge_set_hash(challenges)}  ({len(challenges)} challenge(s))")
     return 0
 
 
@@ -92,6 +105,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="lower-case the answer first (pair with case_sensitive: false)",
     )
     h.set_defaults(func=cmd_hash)
+
+    s = sub.add_parser("set-hash", help="print the challenge-set hash for a directory")
+    s.add_argument("path", help="directory of challenge YAML files")
+    s.set_defaults(func=cmd_set_hash)
 
     r = sub.add_parser("report", help="aggregate a JSONL attempt log into a report")
     r.add_argument("attempts", help="path to a JSONL attempt log")

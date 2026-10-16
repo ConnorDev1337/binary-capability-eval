@@ -7,6 +7,7 @@ from bineval.challenge import (
     GraderKind,
     GraderSpec,
     Level,
+    challenge_set_hash,
     load_challenge,
     load_challenges,
 )
@@ -106,3 +107,62 @@ def test_load_challenges_duplicate_id(tmp_path):
         )
     with pytest.raises(ValueError, match="duplicate"):
         load_challenges(tmp_path)
+
+
+def test_sha256_value_must_be_a_digest():
+    with pytest.raises(ValueError, match="64-character hex digest"):
+        GraderSpec(GraderKind.SHA256, "not-a-digest")
+    GraderSpec(GraderKind.SHA256, "AB" * 32)  # upper-case hex is accepted
+
+
+def test_regex_value_must_compile():
+    with pytest.raises(ValueError, match="does not compile"):
+        GraderSpec(GraderKind.REGEX, "flag{[")
+
+
+def test_case_sensitive_must_be_bool():
+    data = _valid() | {"grader": {"kind": "exact", "value": "v", "case_sensitive": "false"}}
+    with pytest.raises(ValueError, match="case_sensitive"):
+        Challenge.from_dict(data)
+
+
+def test_tags_string_rejected():
+    with pytest.raises(ValueError, match="tags"):
+        Challenge.from_dict(_valid() | {"tags": "x86-64"})
+
+
+def test_set_hash_ignores_order():
+    a = Challenge.from_dict(_valid())
+    b = Challenge.from_dict(_valid() | {"id": "x-002"})
+    assert challenge_set_hash([a, b]) == challenge_set_hash([b, a])
+    assert len(challenge_set_hash([a])) == 64
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"description": "edited"},
+        {"grader": {"kind": "exact", "value": "43"}},
+        {"grader": {"kind": "exact", "value": "42", "case_sensitive": False}},
+        {"level": "SIMPLE_REVERSING"},
+    ],
+)
+def test_set_hash_changes_with_content(change):
+    base = challenge_set_hash([Challenge.from_dict(_valid())])
+    assert challenge_set_hash([Challenge.from_dict(_valid() | change)]) != base
+
+
+def test_set_hash_independent_of_yaml_layout(tmp_path):
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    (tmp_path / "a" / "one.yaml").write_text(
+        "id: c\nlevel: ASM_READING\ntitle: t\ngrader: {kind: exact, value: v}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "b" / "renamed.yml").write_text(
+        "# a comment\nid: c\ntitle: t\nlevel: asm_reading\ngrader:\n  kind: EXACT\n  value: v\n",
+        encoding="utf-8",
+    )
+    assert challenge_set_hash(load_challenges(tmp_path / "a")) == challenge_set_hash(
+        load_challenges(tmp_path / "b")
+    )

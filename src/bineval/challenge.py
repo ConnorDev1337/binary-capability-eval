@@ -9,10 +9,19 @@ needs to know how to recognise a correct answer, which is what the grader spec r
 from __future__ import annotations
 
 import enum
+import hashlib
+import json
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+_SHA256_HEX = re.compile(r"[0-9a-fA-F]{64}")
+
+# Bump when the canonical form hashed by challenge_set_hash() changes.
+_SET_HASH_SCHEME = 1
 
 
 class Level(enum.StrEnum):
@@ -57,6 +66,17 @@ class GraderSpec:
     value: str
     case_sensitive: bool = True
 
+    def __post_init__(self) -> None:
+        # A malformed spec can never accept any answer, which would silently record every
+        # attempt as a failure. Reject it at load time instead.
+        if self.kind is GraderKind.SHA256 and not _SHA256_HEX.fullmatch(self.value.strip()):
+            raise ValueError("sha256 grader 'value' must be a 64-character hex digest")
+        if self.kind is GraderKind.REGEX:
+            try:
+                re.compile(self.value)
+            except re.error as exc:
+                raise ValueError(f"regex grader 'value' does not compile: {exc}") from exc
+
     @staticmethod
     def from_dict(data: dict) -> GraderSpec:
         try:
@@ -70,11 +90,13 @@ class GraderSpec:
             ) from exc
         if "value" not in data:
             raise ValueError("grader is missing 'value'")
-        return GraderSpec(
-            kind=kind,
-            value=str(data["value"]),
-            case_sensitive=bool(data.get("case_sensitive", True)),
-        )
+        case_sensitive = data.get("case_sensitive", True)
+        if not isinstance(case_sensitive, bool):
+            # bool("false") is True, so a quoted YAML value would silently flip the meaning.
+            raise ValueError(
+                f"grader 'case_sensitive' must be true or false, got {case_sensitive!r}"
+            )
+        return GraderSpec(kind=kind, value=str(data["value"]), case_sensitive=case_sensitive)
 
 
 @dataclass(frozen=True)
@@ -112,7 +134,11 @@ class Challenge:
             raise ValueError(
                 f"unknown level {data['level']!r}; expected one of {[x.value for x in Level]}"
             ) from exc
-        tags = tuple(str(t) for t in data.get("tags", ()))
+        raw_tags = data.get("tags", ())
+        if isinstance(raw_tags, str):
+            # A bare string would otherwise be split into one tag per character.
+            raise ValueError(f"'tags' must be a list, got the string {raw_tags!r}")
+        tags = tuple(str(t) for t in raw_tags)
         return Challenge(
             id=str(data["id"]),
             level=level,
@@ -124,6 +150,39 @@ class Challenge:
             tags=tags,
             points=int(data.get("points", 1)),
         )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "level": self.level.value,
+            "title": self.title,
+            "description": self.description,
+            "difficulty": self.difficulty,
+            "source": self.source,
+            "tags": list(self.tags),
+            "points": self.points,
+            "grader": {
+                "kind": self.grader.kind.value,
+                "value": self.grader.value,
+                "case_sensitive": self.grader.case_sensitive,
+            },
+        }
+
+
+def challenge_set_hash(challenges: Iterable[Challenge]) -> str:
+    """SHA-256 over the parsed content of a challenge set, independent of file layout.
+
+    The hash covers every field, in id order, so editing a description or a grader changes
+    it, while reformatting YAML, adding comments, or moving files does not. Publish it with
+    results so a private set can later be shown to be the one that was evaluated.
+    """
+
+    payload = {
+        "scheme": _SET_HASH_SCHEME,
+        "challenges": [c.to_dict() for c in sorted(challenges, key=lambda c: c.id)],
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def load_challenge(path: str | Path) -> Challenge:
