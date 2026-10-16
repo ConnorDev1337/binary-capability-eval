@@ -18,6 +18,8 @@ from pathlib import Path
 
 import yaml
 
+from bineval.rubric import RubricStep
+
 _SHA256_HEX = re.compile(r"[0-9a-fA-F]{64}")
 
 # Bump when the canonical form hashed by challenge_set_hash() changes.
@@ -98,10 +100,64 @@ class GraderSpec:
             )
         return GraderSpec(kind=kind, value=str(data["value"]), case_sensitive=case_sensitive)
 
+    def to_dict(self) -> dict:
+        return {"kind": self.kind.value, "value": self.value, "case_sensitive": self.case_sensitive}
+
+
+@dataclass(frozen=True)
+class Checkpoint:
+    """A graded intermediate result that evidences one rubric step.
+
+    A checkpoint turns a step label from a judgement into a measurement: if the agent can
+    state, say, the size of the buffer the flaw hinges on, it reached ``LOCATE_FLAW``.
+    When a challenge defines checkpoints, the recorded step comes only from the ones that
+    pass, and the runner's own claim is ignored.
+    """
+
+    id: str
+    step: RubricStep
+    question: str
+    grader: GraderSpec
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise ValueError("checkpoint 'id' must be non-empty")
+        if self.step in (RubricStep.NONE, RubricStep.DELIVER):
+            # DELIVER belongs to the challenge's own grader; NONE is not evidence of anything.
+            raise ValueError(f"checkpoint {self.id!r}: step cannot be {self.step.name}")
+
+    @staticmethod
+    def from_dict(data: dict) -> Checkpoint:
+        missing = [k for k in ("id", "step", "question", "grader") if k not in data]
+        if missing:
+            raise ValueError(f"checkpoint is missing field(s): {', '.join(missing)}")
+        try:
+            step = RubricStep[str(data["step"]).upper()]
+        except KeyError as exc:
+            raise ValueError(f"checkpoint has unknown step {data['step']!r}") from exc
+        return Checkpoint(
+            id=str(data["id"]),
+            step=step,
+            question=str(data["question"]),
+            grader=GraderSpec.from_dict(dict(data["grader"])),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "step": self.step.name,
+            "question": self.question,
+            "grader": self.grader.to_dict(),
+        }
+
 
 @dataclass(frozen=True)
 class Challenge:
-    """One gradable task."""
+    """One gradable task.
+
+    ``human_minutes`` is an optional estimate of how long a competent human reverse
+    engineer needs, which lets results be read against task length and not only level.
+    """
 
     id: str
     level: Level
@@ -112,6 +168,8 @@ class Challenge:
     source: str = "own"
     tags: tuple[str, ...] = field(default_factory=tuple)
     points: int = 1
+    human_minutes: float | None = None
+    checkpoints: tuple[Checkpoint, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -122,6 +180,11 @@ class Challenge:
             )
         if self.points < 0:
             raise ValueError(f"challenge {self.id!r}: points must be >= 0")
+        if self.human_minutes is not None and self.human_minutes <= 0:
+            raise ValueError(f"challenge {self.id!r}: human_minutes must be > 0")
+        ids = [cp.id for cp in self.checkpoints]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"challenge {self.id!r}: duplicate checkpoint ids {sorted(ids)}")
 
     @staticmethod
     def from_dict(data: dict) -> Challenge:
@@ -139,6 +202,16 @@ class Challenge:
             # A bare string would otherwise be split into one tag per character.
             raise ValueError(f"'tags' must be a list, got the string {raw_tags!r}")
         tags = tuple(str(t) for t in raw_tags)
+        raw_checkpoints = data.get("checkpoints", ())
+        if not isinstance(raw_checkpoints, list | tuple):
+            raise ValueError("'checkpoints' must be a list")
+        checkpoints = []
+        for i, raw in enumerate(raw_checkpoints):
+            try:
+                checkpoints.append(Checkpoint.from_dict(dict(raw)))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"checkpoint {i}: {exc}") from exc
+        human_minutes = data.get("human_minutes")
         return Challenge(
             id=str(data["id"]),
             level=level,
@@ -149,6 +222,8 @@ class Challenge:
             source=str(data.get("source", "own")),
             tags=tags,
             points=int(data.get("points", 1)),
+            human_minutes=None if human_minutes is None else float(human_minutes),
+            checkpoints=tuple(checkpoints),
         )
 
     def to_dict(self) -> dict:
@@ -161,11 +236,9 @@ class Challenge:
             "source": self.source,
             "tags": list(self.tags),
             "points": self.points,
-            "grader": {
-                "kind": self.grader.kind.value,
-                "value": self.grader.value,
-                "case_sensitive": self.grader.case_sensitive,
-            },
+            "human_minutes": self.human_minutes,
+            "grader": self.grader.to_dict(),
+            "checkpoints": [cp.to_dict() for cp in self.checkpoints],
         }
 
 

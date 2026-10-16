@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bineval"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A harness for measuring LLM-agent capability on reverse-engineering tasks, by difficulty and by failure sub-step."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,6 +31,9 @@ dev = [
 
 [project.scripts]
 bineval = "bineval.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "bineval._version.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

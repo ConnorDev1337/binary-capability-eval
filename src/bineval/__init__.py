@@ -9,8 +9,10 @@ sandbox are interfaces you implement for your own isolated environment.
 
 from __future__ import annotations
 
+from bineval._version import __version__
 from bineval.challenge import (
     Challenge,
+    Checkpoint,
     GraderSpec,
     Level,
     challenge_set_hash,
@@ -22,9 +24,11 @@ from bineval.metrics import (
     ChallengeResult,
     FailureBreakdown,
     LevelSummary,
+    ModelComparison,
     aggregate,
 )
-from bineval.rubric import Attempt, RubricStep
+from bineval.report import append_attempt, load_attempts
+from bineval.rubric import Attempt, RubricStep, StepSource, StopReason
 from bineval.runner import AgentRunner, RunOutput, evaluate
 
 __all__ = [
@@ -32,19 +36,24 @@ __all__ = [
     "Attempt",
     "Challenge",
     "ChallengeResult",
+    "Checkpoint",
     "FailureBreakdown",
     "GradeOutcome",
     "GraderSpec",
     "Level",
     "LevelSummary",
+    "ModelComparison",
     "RubricStep",
     "RunOutput",
+    "StepSource",
+    "StopReason",
+    "__version__",
     "aggregate",
+    "append_attempt",
     "challenge_set_hash",
     "evaluate",
     "grade",
+    "load_attempts",
     "load_challenge",
     "load_challenges",
 ]
-
-__version__ = "0.1.0"

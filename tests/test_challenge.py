@@ -11,6 +11,7 @@ from bineval.challenge import (
     load_challenge,
     load_challenges,
 )
+from bineval.rubric import RubricStep
 
 
 def _valid() -> dict:
@@ -166,3 +167,52 @@ def test_set_hash_independent_of_yaml_layout(tmp_path):
     assert challenge_set_hash(load_challenges(tmp_path / "a")) == challenge_set_hash(
         load_challenges(tmp_path / "b")
     )
+
+
+def _checkpoint(cid: str = "cp1", step: str = "LOCATE_FLAW") -> dict:
+    return {"id": cid, "step": step, "question": "q?", "grader": {"kind": "exact", "value": "8"}}
+
+
+def test_checkpoints_and_human_minutes_parse():
+    ch = Challenge.from_dict(_valid() | {"human_minutes": 30, "checkpoints": [_checkpoint()]})
+    assert ch.human_minutes == 30.0
+    (cp,) = ch.checkpoints
+    assert cp.step is RubricStep.LOCATE_FLAW
+    assert cp.grader.kind is GraderKind.EXACT
+
+
+@pytest.mark.parametrize("step", ["NONE", "DELIVER"])
+def test_checkpoint_step_cannot_be_none_or_deliver(step):
+    with pytest.raises(ValueError, match=f"checkpoint 0: .*{step}"):
+        Challenge.from_dict(_valid() | {"checkpoints": [_checkpoint(step=step)]})
+
+
+@pytest.mark.parametrize(
+    ("checkpoints", "match"),
+    [
+        ([_checkpoint(step="GUESS")], "unknown step"),
+        ([{"id": "x"}], "missing"),
+        ([_checkpoint(), _checkpoint()], "duplicate checkpoint"),
+        ("cp1", "must be a list"),
+    ],
+)
+def test_bad_checkpoints(checkpoints, match):
+    with pytest.raises(ValueError, match=match):
+        Challenge.from_dict(_valid() | {"checkpoints": checkpoints})
+
+
+def test_human_minutes_must_be_positive():
+    with pytest.raises(ValueError, match="human_minutes"):
+        Challenge.from_dict(_valid() | {"human_minutes": 0})
+
+
+def test_set_hash_covers_checkpoints_and_human_minutes():
+    base = challenge_set_hash([Challenge.from_dict(_valid())])
+    for change in ({"human_minutes": 5}, {"checkpoints": [_checkpoint()]}):
+        assert challenge_set_hash([Challenge.from_dict(_valid() | change)]) != base
+
+
+def test_example_defines_a_checkpoint(example_challenge_path):
+    ch = load_challenge(example_challenge_path)
+    assert ch.human_minutes is not None
+    assert [cp.step for cp in ch.checkpoints] == [RubricStep.REASON_MEMORY]

@@ -4,7 +4,14 @@
 #
 # The expected answer is stored as a SHA-256 digest so a challenge file never has to
 # contain the plaintext answer. For this public example the answer is "popcount"
-# (generate digests with `bineval hash --case-insensitive popcount`).
+# (generate digests with `bineval hash --case-insensitive popcount`). A digest of a short
+# word is easy to brute-force, so a private challenge should grade a random flag instead
+# (see docs/DESIGN.md, "Graders").
+#
+# The checkpoint makes the step label a measurement: an agent that computes the right
+# output for 0xFF has evidently tracked the function's state (REASON_MEMORY), whether or
+# not it then names the function. Ask checkpoint questions after the attempt ends, so
+# they do not steer it (docs/RUBRIC.md, "Checkpoints").
 
 id: asm-reading-001
 level: ASM_READING
@@ -17,7 +24,15 @@ difficulty: 1
 source: own
 tags: [x86-64, leaf-function, naming]
 points: 1
+human_minutes: 5
 grader:
   kind: sha256
   value: 10280ea85cb40a190a48af2e3b133077bcbf72f24f1ff4a9fcaa11c522b102f4
   case_sensitive: false
+checkpoints:
+  - id: output-for-0xff
+    step: REASON_MEMORY
+    question: What does the function return for the input 0xFF? Answer in decimal.
+    grader:
+      kind: exact
+      value: "8"

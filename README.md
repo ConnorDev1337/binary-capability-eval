@@ -17,8 +17,13 @@ breakdown of where models fail, and an honest account of the limits.
 - A per-sub-step rubric that records *where* an attempt failed (read the assembly,
   reason about memory, locate the flaw, build the solution, deliver it), not just a
   binary solved / not-solved.
-- Aggregation into a capability curve by difficulty, a failure table by model, and
+- Optional graded checkpoints per challenge, so "where it failed" can be measured rather
+  than judged.
+- Aggregation into a capability curve by difficulty with 95% intervals that account for
+  repeated runs, a failure table by model and level, paired model comparisons, and
   reliability figures from repeated runs.
+- A record of why each attempt ended, so refusals and infrastructure failures are not
+  read as capability limits.
 
 ## What this is not
 
@@ -42,8 +47,9 @@ Challenges are organised by level:
    toy binaries.
 
 Each challenge carries a self-validating grader. Each attempt is annotated with the
-furthest rubric step reached. Runs are repeated `k` times per challenge because results
-vary; reliability is reported alongside the raw solve rate.
+furthest rubric step reached and the reason it ended. Runs are repeated `k` times per
+challenge because results vary; reliability is reported alongside the solve rate, and
+every rate comes with an interval computed over challenges, not attempts.
 
 See [`docs/DESIGN.md`](docs/DESIGN.md), [`docs/RUBRIC.md`](docs/RUBRIC.md), and
 [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
@@ -70,8 +76,9 @@ bineval report examples/attempts.synthetic.jsonl        # Markdown report
 bineval report examples/attempts.synthetic.jsonl --format json --out summary.json
 ```
 
-`examples/attempts.synthetic.jsonl` is **synthetic demo data** for exercising the report.
-It is not a measurement of any model.
+`examples/attempts.synthetic.jsonl` is **synthetic demo data** for exercising the report,
+including a refusal, a budget overrun, and an infrastructure error that was re-run. It is
+not a measurement of any model.
 
 ## Plugging in a runner
 
@@ -79,22 +86,43 @@ bineval does not ship an agent. Implement the `AgentRunner` protocol for your mo
 your sandbox, and `evaluate()` does the rest:
 
 ```python
-from bineval import RubricStep, RunOutput, evaluate, load_challenges
-from bineval.report import write_attempts
+from pathlib import Path
+
+from bineval import (
+    RubricStep, RunOutput, StopReason, append_attempt, evaluate, load_attempts, load_challenges,
+)
 
 class MyRunner:
     model = "my-model-2026-10-01"
 
     def run(self, challenge, run_index):
-        # Drive your agent inside your isolated VM; return its answer and how far it got.
-        return RunOutput(submission="...", furthest_step=RubricStep.READ_ASSEMBLY)
+        # Drive your agent inside your isolated VM. Return its answer, why it stopped, how
+        # far it got, and its answers to the challenge's checkpoint questions, if any.
+        return RunOutput(
+            submission="...",
+            stop_reason=StopReason.ANSWERED,  # or REFUSED, BUDGET_EXHAUSTED, NO_ANSWER
+            furthest_step=RubricStep.READ_ASSEMBLY,
+            checkpoint_answers={"output-for-0xff": "8"},
+        )
 
-attempts = evaluate(load_challenges("challenges/"), MyRunner(), k=3)
-write_attempts("runs/my-model.jsonl", attempts)
+log = Path("runs/my-model.jsonl")
+done = load_attempts(log) if log.exists() else []
+evaluate(
+    load_challenges("challenges/"),
+    MyRunner(),
+    k=3,
+    done=done,                                   # resume: skip runs already in the log
+    on_attempt=lambda a: append_attempt(log, a),  # every attempt is on disk once graded
+)
 ```
 
-The grader decides whether an attempt is solved. `evaluate()` overrides the runner's
-claimed step to keep it consistent with the grade, so a runner cannot inflate its score.
+The grader decides whether an attempt is solved, and `evaluate()` keeps the claimed step
+consistent with the grade, so a runner cannot inflate its score. For a challenge with
+checkpoints, the step comes from grading the checkpoint answers and the claim is ignored.
+
+If the runner raises, the attempt is recorded as `INFRA_ERROR` and the loop moves on.
+Those attempts are excluded from every metric, and running the same code again re-runs
+them. Report `INFRA_ERROR` yourself for failures that are not the model's.
 
 ## Layout
 
@@ -109,8 +137,8 @@ binary-capability-eval/
 
 ## Status
 
-Alpha. The measurement side is complete and tested: challenge schema, grading, rubric,
-evaluation loop, metrics, and reporting. No results are published yet. The agent runner
+Alpha. The measurement side is complete and tested: challenge schema, grading,
+checkpoints, rubric, evaluation loop with resume, metrics with uncertainty, and reporting. No results are published yet. The agent runner
 and sandbox are interfaces you implement for your own environment.
 
 ## License

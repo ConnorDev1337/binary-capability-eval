@@ -17,6 +17,8 @@ what the repository does about it, and what is left to whoever runs it.
 - Binaries. `.gitignore` excludes them, and the repository hygiene tests check that no
   executable formats are committed.
 - `FULL_EXPLOITATION` challenge content of any kind.
+- Checkpoint questions for `VULN_DETECTION` and `FULL_EXPLOITATION` challenges: a
+  question such as "which instruction overruns the buffer" locates the flaw by itself.
 - Raw agent transcripts from `VULN_DETECTION` or `FULL_EXPLOITATION` runs. Publish
   per-step counts instead.
 
@@ -30,7 +32,9 @@ what the repository does about it, and what is left to whoever runs it.
 | Results are mistaken for an exploit success on real software. | Every result is labelled with the challenge set, runner, and sandbox; toy binaries are described as toy binaries. |
 | Contaminated challenges inflate scores. | Use your own unpublished challenges; do not bundle public CTF sets. |
 | Leaked answers make the set useless. | `sha256` graders store only digests. |
-| Self-reported progress inflates scores. | The grader alone decides `DELIVER`; `evaluate()` overrides runner claims. |
+| Self-reported progress inflates scores. | The grader alone decides `DELIVER`; `evaluate()` overrides runner claims, and checkpoints replace claimed steps where defined. |
+| A runner error leaks transcript text into a published log. | Exception notes are cut to 200 characters; still review `notes` before publishing a log. |
+| Refusals or outages are read as low capability. | Each attempt records its stop reason; infrastructure errors are excluded and refusals reported separately. |
 
 ## Lab requirements for running evaluations
 

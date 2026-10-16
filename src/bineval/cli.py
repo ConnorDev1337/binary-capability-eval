@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from bineval import __version__
+from bineval._version import __version__
 from bineval.challenge import challenge_set_hash, load_challenge, load_challenges
 from bineval.grader import grade
 from bineval.metrics import aggregate
