@@ -1,4 +1,4 @@
-# binary-capability-eval
+# Binary Capability Eval
 
 A reproducible harness for **measuring** how far an autonomous LLM agent gets on
 reverse-engineering and binary-analysis tasks without human help, and for pinpointing
