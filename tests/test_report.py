@@ -11,9 +11,35 @@ from bineval.report import (
     json_summary,
     load_attempts,
     markdown_report,
+    tag_attempts,
     write_attempts,
 )
 from bineval.rubric import RubricStep, StepSource, StopReason
+
+
+def test_tag_attempts_renames_model_only():
+    original = [make_attempt("c1", model="m", solved=True), make_attempt("c2", model="m")]
+    tagged = tag_attempts(original, " base ")
+    assert [a.model for a in tagged] == ["m [base]", "m [base]"]
+    assert [a.challenge_id for a in tagged] == ["c1", "c2"]
+    assert [a.solved for a in tagged] == [True, False]
+    assert original[0].model == "m"
+
+
+def test_tag_attempts_rejects_empty_tag():
+    with pytest.raises(ValueError, match="empty"):
+        tag_attempts([make_attempt()], "  ")
+
+
+def test_tagged_logs_are_paired_by_challenge():
+    base = [make_attempt(c, solved=False) for c in ("c1", "c2", "c3")]
+    tuned = [make_attempt(c, solved=c != "c3") for c in ("c1", "c2", "c3")]
+    agg = aggregate(tag_attempts(base, "base") + tag_attempts(tuned, "tuned"))
+    assert agg.models == ("m [base]", "m [tuned]")
+    (cmp,) = agg.comparisons
+    assert (cmp.model_a, cmp.model_b) == ("m [base]", "m [tuned]")
+    assert cmp.result.n_challenges == 3
+    assert cmp.result.diff == pytest.approx(-2 / 3)
 
 
 def test_jsonl_round_trip(tmp_path):

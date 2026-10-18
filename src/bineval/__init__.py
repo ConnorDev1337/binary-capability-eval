@@ -27,7 +27,7 @@ from bineval.metrics import (
     ModelComparison,
     aggregate,
 )
-from bineval.report import append_attempt, load_attempts
+from bineval.report import append_attempt, load_attempts, tag_attempts
 from bineval.rubric import Attempt, RubricStep, StepSource, StopReason
 from bineval.runner import AgentRunner, RunOutput, evaluate
 
@@ -56,4 +56,5 @@ __all__ = [
     "load_attempts",
     "load_challenge",
     "load_challenges",
+    "tag_attempts",
 ]

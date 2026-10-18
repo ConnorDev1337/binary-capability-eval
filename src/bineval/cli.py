@@ -12,7 +12,8 @@ from bineval._version import __version__
 from bineval.challenge import challenge_set_hash, load_challenge, load_challenges
 from bineval.grader import grade
 from bineval.metrics import aggregate
-from bineval.report import json_summary, load_attempts, markdown_report
+from bineval.report import json_summary, load_attempts, markdown_report, tag_attempts
+from bineval.rubric import Attempt
 
 
 def cmd_validate(args) -> int:
@@ -62,8 +63,18 @@ def cmd_set_hash(args) -> int:
 
 
 def cmd_report(args) -> int:
+    if args.tag and len(args.tag) != len(args.attempts):
+        print(
+            f"error: got {len(args.tag)} --tag value(s) for {len(args.attempts)} log(s); "
+            "give one per log or none",
+            file=sys.stderr,
+        )
+        return 2
+    attempts: list[Attempt] = []
     try:
-        attempts = load_attempts(args.attempts)
+        for i, path in enumerate(args.attempts):
+            log = load_attempts(path)
+            attempts += tag_attempts(log, args.tag[i]) if args.tag else log
     except (OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -110,8 +121,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("path", help="directory of challenge YAML files")
     s.set_defaults(func=cmd_set_hash)
 
-    r = sub.add_parser("report", help="aggregate a JSONL attempt log into a report")
-    r.add_argument("attempts", help="path to a JSONL attempt log")
+    r = sub.add_parser("report", help="aggregate JSONL attempt logs into a report")
+    r.add_argument("attempts", nargs="+", help="one or more JSONL attempt logs, read together")
+    r.add_argument(
+        "--tag",
+        action="append",
+        help="label for each log, in order, appended to its model names; tag two logs of "
+        "one model (e.g. before/after an elicitation change) to get a paired comparison",
+    )
     r.add_argument("--format", choices=["markdown", "json"], default="markdown")
     r.add_argument("--out", help="write to this file instead of stdout")
     r.add_argument("--title", default="bineval results")

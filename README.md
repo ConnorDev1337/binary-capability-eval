@@ -80,6 +80,17 @@ bineval report examples/attempts.synthetic.jsonl --format json --out summary.jso
 including a refusal, a budget overrun, and an infrastructure error that was re-run. It is
 not a measurement of any model.
 
+`bineval report` reads several logs together, for example one per model. To compare two
+logs of the same model, such as before and after an elicitation change, tag each one:
+
+```
+bineval report runs/base.jsonl runs/tuned.jsonl --tag base --tag tuned
+```
+
+The model then appears once per tag (`my-model [base]`, `my-model [tuned]`), and the
+paired-comparison table gives the difference challenge by challenge. Models sort by name,
+so "model A" in that table is the tag that sorts first.
+
 ## Plugging in a runner
 
 bineval does not ship an agent. Implement the `AgentRunner` protocol for your model and

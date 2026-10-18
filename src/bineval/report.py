@@ -9,6 +9,7 @@ machine-readable JSON summary for plotting.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from bineval._version import __version__
@@ -56,6 +57,20 @@ def append_attempt(path: str | Path, attempt: Attempt) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(attempt.to_dict(), sort_keys=True) + "\n")
+
+
+def tag_attempts(attempts: list[Attempt], tag: str) -> list[Attempt]:
+    """Return copies of *attempts* with ``" [tag]"`` appended to every model name.
+
+    Use it to compare two logs of the same model, for example before and after an
+    elicitation change: tagged, they aggregate as two models, and the report pairs them
+    by challenge like any other two models.
+    """
+
+    tag = tag.strip()
+    if not tag:
+        raise ValueError("tag must not be empty")
+    return [replace(a, model=f"{a.model} [{tag}]") for a in attempts]
 
 
 def _pct(x: float) -> str:

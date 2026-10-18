@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use bineval or its results, please cite it as below."
+type: software
+title: "bineval: measuring LLM-agent capability on reverse-engineering tasks"
+abstract: >-
+  A harness for measuring LLM-agent capability on reverse-engineering tasks, by
+  difficulty and by failure sub-step.
+authors:
+  - alias: "ConnorDev"
+license: Apache-2.0
+keywords:
+  - evaluation
+  - benchmark
+  - capability
+  - reverse-engineering
+  - ai-safety
+# Add repository-code, version, and date-released when the repository is published.

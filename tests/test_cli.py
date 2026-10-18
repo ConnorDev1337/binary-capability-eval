@@ -5,10 +5,11 @@ import io
 import json
 
 import pytest
-from conftest import EXAMPLES
+from conftest import EXAMPLES, make_attempt
 
 from bineval import __version__
 from bineval.cli import main
+from bineval.report import write_attempts
 
 
 def test_version(capsys):
@@ -70,6 +71,37 @@ def test_report_json_to_file(tmp_path):
     assert rc == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["models"] == ["synthetic-model-a", "synthetic-model-b"]
+
+
+def _write_log(path, model: str, solved: dict[str, bool]) -> str:
+    write_attempts(path, [make_attempt(c, model=model, solved=s) for c, s in solved.items()])
+    return str(path)
+
+
+def test_report_tagged_logs_compare_one_model(capsys, tmp_path):
+    base = _write_log(tmp_path / "base.jsonl", "m", {"c1": False, "c2": False})
+    tuned = _write_log(tmp_path / "tuned.jsonl", "m", {"c1": True, "c2": False})
+    assert main(["report", base, tuned, "--tag", "base", "--tag", "tuned"]) == 0
+    out = capsys.readouterr().out
+    assert "## Paired comparison" in out
+    assert "| ASM_READING | m [base] | m [tuned] | 2 | -50.0 pp |" in out
+
+
+def test_report_untagged_logs_are_read_together(tmp_path):
+    a = _write_log(tmp_path / "a.jsonl", "model-a", {"c1": True})
+    b = _write_log(tmp_path / "b.jsonl", "model-b", {"c1": False})
+    out = tmp_path / "summary.json"
+    assert main(["report", a, b, "--format", "json", "--out", str(out)]) == 0
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["models"] == ["model-a", "model-b"]
+    assert data["total_attempts"] == 2
+
+
+def test_report_tag_count_must_match_logs(capsys, tmp_path):
+    a = _write_log(tmp_path / "a.jsonl", "m", {"c1": True})
+    b = _write_log(tmp_path / "b.jsonl", "m", {"c1": True})
+    assert main(["report", a, b, "--tag", "only-one"]) == 2
+    assert "1 --tag value(s) for 2 log(s)" in capsys.readouterr().err
 
 
 def test_report_bad_log(capsys, tmp_path):
