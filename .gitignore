@@ -35,3 +35,6 @@ challenges/*
 .DS_Store
 .idea/
 .vscode/
+
+# Local agent conventions, not published
+CLAUDE.md
