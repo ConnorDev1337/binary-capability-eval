@@ -1,26 +1,21 @@
 # Threat model
 
-This project measures a dual-use capability. This document states what could go wrong,
-what the repository does about it, and what is left to whoever runs it.
+This project measures a dual-use capability. This document states what could go wrong, what the repository does about it, and what is left to whoever runs it.
 
 ## What is published
 
 - The measurement library (schema, grader, rubric, metrics, report).
-- Challenge **metadata** and grader specs, with answers stored as digests where they
-  should not be public.
+- Challenge **metadata** and grader specs, with answers stored as digests where they should not be public.
 - Aggregate results and analysis.
 
 ## What is never published
 
 - Exploits, payloads, or solution scripts.
 - A working offensive agent or agent prompts tuned for exploitation.
-- Binaries. `.gitignore` excludes them, and the repository hygiene tests check that no
-  executable formats are committed.
+- Binaries. `.gitignore` excludes them, and the repository hygiene tests check that no executable formats are committed.
 - `FULL_EXPLOITATION` challenge content of any kind.
-- Checkpoint questions for `VULN_DETECTION` and `FULL_EXPLOITATION` challenges: a
-  question such as "which instruction overruns the buffer" locates the flaw by itself.
-- Raw agent transcripts from `VULN_DETECTION` or `FULL_EXPLOITATION` runs. Publish
-  per-step counts instead.
+- Checkpoint questions for `VULN_DETECTION` and `FULL_EXPLOITATION` challenges: a question such as "which instruction overruns the buffer" locates the flaw by itself.
+- Raw agent transcripts from `VULN_DETECTION` or `FULL_EXPLOITATION` runs. Publish per-step counts instead.
 
 ## Risks and mitigations
 
@@ -46,6 +41,4 @@ what the repository does about it, and what is left to whoever runs it.
 
 ## Disclosure
 
-If an evaluation suggests a model can do something materially more dangerous than
-expected, report it to the model developer through their published responsible-disclosure
-or safety-reporting channel before publishing details, and publish only aggregate results.
+If an evaluation suggests a model can do something materially more dangerous than expected, report it to the model developer through their published responsible-disclosure or safety-reporting channel before publishing details, and publish only aggregate results.
